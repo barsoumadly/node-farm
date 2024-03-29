@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const url = require("url");
+const slugify = require("slugify");
 const replaceTemplate = require("./modules/replaceTemplate");
 
 const overviewTemplate = fs.readFileSync(
@@ -19,8 +20,16 @@ const productTemplate = fs.readFileSync(
 const data = fs.readFileSync(`${__dirname}/dev-data/data.json`, "utf-8");
 const dataObj = JSON.parse(data);
 
+const slugs = dataObj.map((element) =>
+  slugify(element.productName, { lower: true })
+);
+
+for (let i = 0; i < slugs.length; i++) {
+  dataObj[i] = { slug: slugs[i], ...dataObj[i] };
+}
+
 const server = http.createServer((req, res) => {
-  const { pathname: pathName, query } = url.parse(req.url, true);
+  const { pathname: pathName } = url.parse(req.url, true);
 
   // Overview page
   if (pathName === "/" || pathName === "/overview") {
@@ -34,8 +43,9 @@ const server = http.createServer((req, res) => {
   }
 
   // Product page
-  else if (pathName === "/product") {
-    const product = dataObj[query.id];
+  else if (pathName.includes("/product")) {
+    const productName = pathName.split("/product/")[1];
+    const [product] = dataObj.filter((element) => element.slug === productName);
     const productPage = replaceTemplate(productTemplate, product);
 
     res.writeHead(200, { "content-type": "text/html" });
